@@ -58,6 +58,89 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Integration Typeorm
+```bash
+yarn add dotenv typeorm pg
+```
+#### Environment Starting Project
+>.env
+```env
+BASE_URL=localhost
+PORT=5000
+DATABASE_URL=postgres://postgres:root@localhost:5433/loja
+TYPEORM_TYPE=postgres
+TYPEORM_SYNCHRONIZE=false
+TYPEORM_LOGGING=false
+TYPEORM_ENTITIES=src/entity/**/*.ts
+TYPEORM_MIGRATIONS=src/migration/**/*.ts
+TYPEORM_SUBSCRIBERS=src/subscriber/**/*.ts
+TYPEORM_ENTITIES_CLI=src/entity
+TYPEORM_MIGRATIONS_CLI=src/migration
+TYPEORM_SUBSCRIBERS_CLI=src/subscriber
+```
+#### Configuration OrmConfig For Common CLI
+>ormconfig.js
+```js
+module.exports = {
+  type: process.env.TYPEORM_TYPE,
+  url: process.env.DATABASE_URL,
+  synchronize: process.env.TYPEORM_SYNCHRONIZE,
+  logging: process.env.TYPEORM_LOGGING,
+  entities: [process.env.TYPEORM_ENTITIES],
+  migrations: [process.env.TYPEORM_MIGRATIONS],
+  subscribers: [process.env.TYPEORM_SUBSCRIBERS],
+  cli: {
+    entitiesDir: process.env.TYPEORM_ENTITIES_CLI,
+    migrationsDir: process.env.TYPEORM_MIGRATIONS_CLI,
+    subscribersDir: process.env.TYPEORM_SUBSCRIBERS_CLI,
+  },
+};
+```
+
+#### Create Providers DataBase and ModuleDataBase
+>/database/database.providers.ts
+```ts
+import { createConnection } from 'typeorm';
+
+export const databaseProviders = [
+  {
+    provide: 'DATABASE_CONNECTION',
+    useFactory: async () =>
+      await createConnection({
+        type: (process.env.TYPEORM_TYPE as 'postgres') || 'postgres',
+        url: process.env.DATABASE_URL,
+        entities: [__dirname + '../entity/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '../migration/**/*{.ts,.js}'],
+        subscribers: [__dirname + '../subscriber/**/*{.ts,.js}'],
+      }),
+  },
+];
+```
+>/database/database.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { databaseProviders } from './database.providers';
+
+@Module({
+  providers: [...databaseProviders],
+  exports: [...databaseProviders],
+})
+export class DatabaseModule {}
+```
+#### Import Module in AppModule
+```ts
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { DatabaseModule } from './database/database.module';
+
+@Module({
+  imports: [DatabaseModule],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+```
 ## Support
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
